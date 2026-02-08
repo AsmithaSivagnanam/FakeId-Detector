@@ -1,5 +1,5 @@
 <div class="auth-container">
-    <h2>Register</h2>
+    <h2>SignIn</h2>
         <div class="error"></div>
     <form method="post">
         <label class = username>Username</label>
@@ -11,8 +11,15 @@
     <p>Create a new account <a href="{{ url_for('login') }}">Login here</a></p>
 </div>
 <style>
+    body {
+      background-image:url("signIn.jpg");
+      background-size: cover;
+      background-repeat: no-repeat;
+      background-position: center;
+    }
     .auth-container {
-        width: 300px;
+        width: 500px;
+        height: 500px;
         margin: 50px auto;
         padding: 20px;
         border: 1px solid #f3eaea;
@@ -21,6 +28,7 @@
         font-family: Arial, Helvetica, sans-serif;
     }
     h2 {
+        font-size: 50px;
         text-align: center;
         color: #141212;
     }
@@ -33,7 +41,7 @@
         width: 100%;
         padding: 8px;
         margin-top: 5px;
-        border: 1px solid #ccc;
+        border: 1px solid #111010;
         border-radius: 3px;
 
         
