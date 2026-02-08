@@ -1,0 +1,158 @@
+body {
+    margin: 0;
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: #0f172a;
+    color: #e5e7eb;
+}
+
+header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 2rem;
+    background: #020617;
+    border-bottom: 1px solid #1f2937;
+}
+
+.logo {
+    font-weight: 700;
+    font-size: 1.1rem;
+    letter-spacing: .04em;
+}
+
+nav a, nav span {
+    margin-left: 1rem;
+    color: #e5e7eb;
+    text-decoration: none;
+    font-size: 0.95rem;
+}
+
+nav a:hover {
+    color: #38bdf8;
+}
+
+main {
+    max-width: 960px;
+    margin: 2rem auto;
+    padding: 0 1rem 3rem;
+}
+
+.auth-container, .feed-container, .admin-container {
+    background: #020617;
+    border-radius: 0.75rem;
+    padding: 2rem;
+    box-shadow: 0 24px 80px rgba(15, 23, 42, 0.9);
+    border: 1px solid #1f2937;
+}
+
+.auth-container h2,
+.feed-container h2,
+.admin-container h2 {
+    margin-top: 0;
+    margin-bottom: 1rem;
+}
+
+label {
+    display: block;
+    margin-top: 1rem;
+    margin-bottom: 0.25rem;
+}
+
+input, textarea {
+    width: 100%;
+    padding: 0.6rem 0.75rem;
+    border-radius: 0.5rem;
+    border: 1px solid #1f2937;
+    background: #020617;
+    color: #e5e7eb;
+}
+
+button {
+    margin-top: 1rem;
+    padding: 0.6rem 1.2rem;
+    border-radius: 999px;
+    border: none;
+    background: linear-gradient(135deg, #22c55e, #38bdf8);
+    color: #020617;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+button:hover {
+    filter: brightness(1.1);
+}
+
+.error {
+    margin-bottom: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.5rem;
+    background: #7f1d1d;
+    color: #fecaca;
+}
+
+.composer, .follow-box {
+    margin-bottom: 1.5rem;
+}
+
+.post-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.post-list li {
+    padding: 0.75rem 0;
+    border-bottom: 1px solid #1f2937;
+}
+
+.post-list .meta {
+    font-size: 0.8rem;
+    color: #9ca3af;
+    margin-right: 0.5rem;
+}
+
+.post-list .author {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #e5e7eb;
+}
+
+.post-list .content {
+    margin: 0.25rem 0 0;
+}
+
+.hint {
+    font-size: 0.8rem;
+    color: #9ca3af;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 1rem;
+}
+
+th, td {
+    padding: 0.6rem 0.75rem;
+    border-bottom: 1px solid #1f2937;
+    text-align: left;
+    font-size: 0.9rem;
+}
+
+th {
+    background: #020617;
+}
+
+.status-safe {
+    color: #22c55e;
+}
+
+.status-restricted {
+    color: #facc15;
+}
+
+.status-blocked {
+    color: #f97373;
+}
+
+

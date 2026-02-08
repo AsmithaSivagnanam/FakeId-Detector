@@ -1,0 +1,30 @@
+<section class="feed-container">
+    <div class="composer">
+        <h2>Post a message</h2>
+        <textarea id="postContent" placeholder="What's happening?"></textarea>
+        <button id="postButton">Post</button>
+        <div id="postStatus"></div>
+    </div>
+
+    <div class="follow-box">
+        <h2>Follow a user</h2>
+        <input id="followUsername" type="text" placeholder="Username to follow">
+        <button id="followButton">Follow</button>
+        <div id="followStatus"></div>
+        <p class="hint">Simulator users: alice, bob, charlie, bot_alpha, bot_beta, bot_gamma</p>
+    </div>
+
+    <h2>Global Feed</h2>
+    <ul class="post-list">
+            <li>
+                <span class="meta">{{ p.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</span>
+                <span class="author">User #{{ p.user_id }}</span>
+                <p class="content">{{ p.content }}</p>
+            </li>
+    </ul>
+</section>
+ 
+<script src="{{ url_for('static', filename='feed.js') }}"></script>
+
+
+

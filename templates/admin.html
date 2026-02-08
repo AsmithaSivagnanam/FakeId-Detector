@@ -1,0 +1,44 @@
+
+<section class="admin-container">
+    <h2>Admin Dashboard – Autonomous Fake Account Agent</h2>
+    <p>This table updates automatically as the background agent re-evaluates users.</p>
+    <table id="userTable">
+        <thead>
+        <tr>
+            <th>User ID</th>
+            <th>Username</th>
+            <th>Risk Score</th>
+            <th>Status</th>
+        </tr>
+        </thead>
+        <tbody>
+        </tbody>
+    </table>
+</section>
+<script src="{{ url_for('static', filename='admin.js') }}"></script>
+<style>
+    .admin-container {
+        width: 80%;
+        margin: 20px auto;
+        font-family: Arial, sans-serif;
+    }
+    h2 {
+        text-align: center;
+        color: #333;
+    }
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 20px;
+    }
+    th, td {
+        border: 1px solid #ddd;
+        padding: 8px;
+        text-align: center;
+    }
+    th {
+        background-color: #f4f4f4;
+        color: #333;
+    }
+
+

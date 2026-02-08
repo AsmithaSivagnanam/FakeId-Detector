@@ -1,0 +1,106 @@
+<div class="auth-container">
+    <h2>Login</h2>
+        <div class="error"></div>
+    <form method="post">
+        <label>Username</label>
+        <input type="text" name="username" placeholder="Enter your username" required>
+        <label>Password</label>
+        <input type="password" name="password" placeholder="Enter your password" class="form-control" aria-describedby="passwordHelpBlock">
+        <div id="passwordHelpBlock" class="form-text">
+  Your password must be 8-20 characters long, contain letters and numbers, and must not contain spaces, special characters, or emoji.
+</div><br>
+<div class = "btn-check-outlined">
+<input type="checkbox" class="btn-check" id="btn-check-outlined" autocomplete="off">
+<label for = "btn-check-outlined" >Show password</label><br>
+        <button type="submit" class = "login">Login</button>
+    </form>
+    <p class = "existing">Existing account? <a href="{{ url_for('register') }}" class = "signin">SignIn here</a></p><br>
+</div>
+<style>
+    body {
+      background-image:url("cyber\ login.jpg");
+      background-size: cover;
+      background-repeat: no-repeat;
+      background-position: center;
+    }
+    
+    ::placeholder{
+        font-style: italic;
+    }
+
+    .auth-container {
+        width: 500px;
+        height: 500px;
+        margin: 50px auto;
+        flex-direction: column;
+        align-items: center;
+        font-family: Arial, sans-serif;
+    }
+    .btn-check-outlined{
+        display: flex;
+        width: 200px;
+        align-items: left;
+        gap: 8px;
+        white-space: nowrap;
+    }
+    .login{
+        margin-top: 10px;
+        padding: 12px;
+        border-radius: 20px;
+        width: 100%;
+        font-size: 16px;
+    }
+    .existing{
+        color: white;
+        text-align: center;
+        margin-top: 10px;
+        align-self: center;
+    }
+    .signin{
+        color: aqua;
+
+    }
+    h2 {
+        text-align: center;
+        font-weight: bold;
+        font-size: 60px;
+        color: #f3eeee;
+    }
+    label {
+        display: flex;
+        margin-top: 10px;
+        color:rgb(246, 238, 238);
+        font-size: 20px;
+    }
+    .form-text{
+        font-size: 12px;
+        color:rgb(237, 233, 233);
+        font-size: 14px;
+    }
+    input {
+        width: 100%;
+        padding: 8px;
+        margin-top: 5px;
+        border: 1px solid #fafdfd;
+        border-radius: 3px;
+    }
+    button {
+        width: 100%;
+        padding: 10px;
+        margin-top: 15px;
+        background-color: #111010;
+        color: rgb(250, 242, 242);
+        border: none;
+        border-radius: 3px;
+        cursor: pointer;
+    }
+    button:hover {
+        background-color: #326499;
+    }
+    .error {
+        color: rgb(227, 173, 173);
+        font-weight: bold;
+        text-align: center;
+    }
+
+
