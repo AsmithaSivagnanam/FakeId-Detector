@@ -2,6 +2,7 @@ import threading
 import time
 from datetime import datetime, timedelta
 
+from flask import render_template, redirect, url_for
 from flask import Flask, jsonify, redirect, render_template, request, session, url_for
 from flask_cors import CORS
 from flask_login import (LoginManager, UserMixin, current_user, login_required,
@@ -45,12 +46,12 @@ def create_app():
     setup_background_components()
 
     # --------- Routes: Auth & Basic Pages ----------
-
-    @app.route("/")
-    def index():
+    
+    @app.route("/signIn")
+    def signIn():
         if current_user.is_authenticated:
             return redirect(url_for("feed"))
-        return redirect(url_for("login"))
+        return render_template("signIn.html")
 
     @app.route("/register", methods=["GET", "POST"])
     def register():

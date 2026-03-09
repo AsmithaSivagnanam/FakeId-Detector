@@ -34,7 +34,7 @@ def train_model_from_history():
 
     X = np.array(X)
     y = np.array(y)
-    clf = RandomForestClassifier(n_estimators=50, random_state=42)
+    clf = RandomForestClassifier(n_estimators=100, random_state=42)
     clf.fit(X, y)
     joblib.dump(clf, MODEL_PATH)
     return clf

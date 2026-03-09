@@ -61,7 +61,7 @@ class UserRisk(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), unique=True, nullable=False)
     risk_score = db.Column(db.Float, default=0.0)
-    status = db.Column(db.String(16), default="Safe")  # Safe, Restricted, Blocked
+    status = db.Column(db.String(16), default="Safe")  
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
