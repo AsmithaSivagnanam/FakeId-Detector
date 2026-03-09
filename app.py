@@ -47,11 +47,11 @@ def create_app():
 
     # --------- Routes: Auth & Basic Pages ----------
     
-    @app.route("/signIn")
-    def signIn():
+    @app.route('/signin')
+    def signin():
         if current_user.is_authenticated:
             return redirect(url_for("feed"))
-        return render_template("signIn.html")
+        return render_template("signin.html")
 
     @app.route("/register", methods=["GET", "POST"])
     def register():
