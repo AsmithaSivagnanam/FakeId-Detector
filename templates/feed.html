@@ -1,4 +1,24 @@
+{% extends "base.html" %}
+{% block content %}
 <section class="feed-container">
+    <h2>Welcome, {{ current_user.username }}</h2>
+
+    <div class="user-directory">
+        <h2>Users & Risk</h2>
+        <ul class="user-list">
+            {% for u in all_users %}
+                {% set risk = all_risk_by_user_id.get(u.id) %}
+                {% set status = risk.status if risk else "Safe" %}
+                {% set score = (risk.risk_score if risk else 0.0) %}
+                {% set status_class = "status-blocked" if status == "Blocked" else ("status-restricted" if status == "Restricted" else "status-safe") %}
+                <li>
+                    <span class="author">{{ u.username }}</span>
+                    <span class="{{ status_class }}">{{ status }} ({{ "%.2f"|format(score) }}%)</span>
+                </li>
+            {% endfor %}
+        </ul>
+    </div>
+
     <div class="composer">
         <h2>Post a message</h2>
         <textarea id="postContent" placeholder="What's happening?"></textarea>
@@ -16,15 +36,26 @@
 
     <h2>Global Feed</h2>
     <ul class="post-list">
+        {% for p in posts %}
+            {% set author = users_by_id.get(p.user_id) %}
+            {% set risk = risk_by_user_id.get(p.user_id) %}
+            {% set status = risk.status if risk else "Safe" %}
+            {% set score = (risk.risk_score if risk else 0.0) %}
+            {% set status_class = "status-blocked" if status == "Blocked" else ("status-restricted" if status == "Restricted" else "status-safe") %}
             <li>
                 <span class="meta">{{ p.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</span>
-                <span class="author">User #{{ p.user_id }}</span>
+                <span class="author">{{ author.username if author else ("User #" ~ p.user_id) }}</span>
+                <span class="{{ status_class }}">{{ status }} ({{ "%.2f"|format(score) }}%)</span>
                 <p class="content">{{ p.content }}</p>
             </li>
+        {% else %}
+            <li>No posts yet.</li>
+        {% endfor %}
     </ul>
 </section>
- 
+
 <script src="{{ url_for('static', filename='feed.js') }}"></script>
+{% endblock %}
 
 
 

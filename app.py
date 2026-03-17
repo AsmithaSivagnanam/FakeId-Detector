@@ -1,15 +1,12 @@
-import threading
-import time
-from datetime import datetime, timedelta
+from datetime import datetime
 
-from flask import app, render_template, redirect, url_for
-from flask import Flask, jsonify, redirect, render_template, request, session, url_for
+from flask import Flask, jsonify, redirect, render_template, request, url_for
 from flask_cors import CORS
 from flask_login import (LoginManager, UserMixin, current_user, login_required,
                          login_user, logout_user)
 
 from models import db, User, Post, Follow, LoginEvent, UserRisk
-from ml_model import load_model, compute_user_features, predict_risk_for_user
+from ml_model import load_model
 from simulator import start_simulation_threads
 from agent import start_agent_thread
 
@@ -46,56 +43,69 @@ def create_app():
     setup_background_components()
 
     # --------- Routes: Auth & Basic Pages ----------
+
+    def _handle_register(template_name: str):
+        if current_user.is_authenticated:
+            return redirect(url_for("feed"))
+
+        if request.method == "POST":
+            username = (request.form.get("username") or "").strip()
+            password = request.form.get("password") or ""
+
+            if not username or not password:
+                return render_template(template_name, error="Fill all fields")
+
+            if User.query.filter_by(username=username).first():
+                return render_template(template_name, error="User already exists")
+
+            user = User(username=username)
+            user.set_password(password)
+            db.session.add(user)
+            db.session.commit()
+
+            login_user(user)
+            db.session.add(LoginEvent(user_id=user.id, timestamp=datetime.utcnow()))
+            db.session.commit()
+
+            return redirect(url_for("feed"))
+
+        return render_template(template_name)
     
     @app.route("/")
     def home():
-      return render_template("login.html")
-
-    @app.route("/signin")
-    def signin():
         if current_user.is_authenticated:
             return redirect(url_for("feed"))
-        return render_template("signin.html")
+        return redirect(url_for("login"))
+
+    @app.route("/signin", methods=["GET", "POST"])
+    def signin():
+        return _handle_register("signIn.html")
 
 
     @app.route("/register", methods=["GET", "POST"])
     def register():
-        if request.method == "POST":
-            username = request.form.get("username")
-            password = request.form.get("password")
-
-        if not username or not password:
-            return render_template("register.html")
-
-        if User.query.filter_by(username=username).first():
-            return render_template("register.html")
-
-        user = User(username=username)
-        user.set_password(password)
-
-        db.session.add(user)
-        db.session.commit()
-
-        return redirect(url_for("login"))
-
-        return render_template("register.html")
-
+        return _handle_register("signIn.html")
 
     @app.route("/login", methods=["GET", "POST"])
     def login():
+        if current_user.is_authenticated:
+            return redirect(url_for("feed"))
+
         if request.method == "POST":
-            username = request.form.get("username")
-            password = request.form.get("password")
+            username = (request.form.get("username") or "").strip()
+            password = request.form.get("password") or ""
+
             user = User.query.filter_by(username=username).first()
             if user and user.check_password(password):
                 login_user(user)
-                # log login event
-                login_event = LoginEvent(user_id=user.id, timestamp=datetime.utcnow())
-                db.session.add(login_event)
+                db.session.add(LoginEvent(user_id=user.id, timestamp=datetime.utcnow()))
                 db.session.commit()
                 return redirect(url_for("feed"))
-            return render_template("login.html", error="Invalid credentials")
+
+            return render_template("login.html", error="Invalid username or password")
+
         return render_template("login.html")
+
 
     @app.route("/logout")
     @login_required
@@ -113,7 +123,26 @@ def create_app():
             .limit(50)
             .all()
         )
-        return render_template("feed.html", posts=posts)
+        user_ids = {p.user_id for p in posts}
+        users = User.query.filter(User.id.in_(user_ids)).all() if user_ids else []
+        users_by_id = {u.id: u for u in users}
+
+        risks = UserRisk.query.filter(UserRisk.user_id.in_(user_ids)).all() if user_ids else []
+        risk_by_user_id = {r.user_id: r for r in risks}
+
+        all_users = User.query.order_by(User.username.asc()).all()
+        all_risks = UserRisk.query.all()
+        all_risk_by_user_id = {r.user_id: r for r in all_risks}
+
+        return render_template(
+            "feed.html",
+            posts=posts,
+            users_by_id=users_by_id,
+            risk_by_user_id=risk_by_user_id,
+            all_users=all_users,
+            all_risk_by_user_id=all_risk_by_user_id,
+        )
+
 
     @app.route("/api/post", methods=["POST"])
     @login_required
@@ -150,11 +179,12 @@ def create_app():
     # --------- Routes: Admin Dashboard ----------
 
     @app.route("/admin")
+    @login_required
     def admin_dashboard():
-        # No auth for prototype; in real system, protect this endpoint
         return render_template("admin.html")
 
     @app.route("/api/admin/users")
+    @login_required
     def admin_users():
         users = User.query.all()
         result = []

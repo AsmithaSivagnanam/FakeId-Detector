@@ -10,16 +10,20 @@
 <header>
     <div class="logo">Fake Account Detector</div>
     <nav>
+        {% if current_user.is_authenticated %}
             <span>Logged in as {{ current_user.username }}</span>
-            <a href="{{ url_for('feed') }}">Feed<br></a>
-            <a href="{{ url_for('admin_dashboard') }}">Admin<br></a>
-            <a href="{{ url_for('logout') }}">Logout<br></a>
-            <a href="{{ url_for('login') }}">Login<br></a>
+            <a href="{{ url_for('feed') }}">Feed</a>
+            <a href="{{ url_for('admin_dashboard') }}">Admin</a>
+            <a href="{{ url_for('logout') }}">Logout</a>
+        {% else %}
+            <a href="{{ url_for('login') }}">Login</a>
             <a href="{{ url_for('register') }}">Register</a>
+        {% endif %}
     </nav>
 
 </header>
 <main>
+    {% block content %}{% endblock %}
 </main>
 </body>
 </html>

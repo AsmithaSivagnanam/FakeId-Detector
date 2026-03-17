@@ -13,8 +13,8 @@ document.addEventListener("DOMContentLoaded", () => {
             const res = await fetch("/api/post", {
                 method: "POST",
                 headers: {
-          3               "Content-Type": "application/json"
-                }
+                    "Content-Type": "application/json"
+                },
                 body: JSON.stringify({content})
             });
             if (res.ok) {

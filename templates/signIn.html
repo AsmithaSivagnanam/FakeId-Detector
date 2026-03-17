@@ -1,7 +1,9 @@
 <div class="auth-container">
     <h2>SignIn</h2>
-        <div class="error"></div>
-    <form method="post">
+    {% if error %}
+        <div class="error">{{ error }}</div>
+    {% endif %}
+    <form method="post" action="{{ url_for('register') }}">
         <label class = username>Username</label>
         <input type="text" name="username" required>
         <label>Password</label>

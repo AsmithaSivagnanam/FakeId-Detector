@@ -1,3 +1,4 @@
+
 import os
 import threading
 from datetime import datetime, timedelta
@@ -50,30 +51,19 @@ def load_model(app):
             _model = train_model_from_history()
 
 
-def compute_user_features(user_id: int) -> Tuple[float, float, float, float] | None:
-    """Compute features for a user over the last 10 minutes window.
-
-    Returns:
-        (msg_freq, follow_rate, duplicate_ratio, login_freq) or None if no activity.
-    """
+def compute_user_features(user_id: int):
     window = datetime.utcnow() - timedelta(minutes=10)
 
-    # Messages per minute
     posts = (
         db.session.query(Post)
         .filter(Post.user_id == user_id, Post.timestamp >= window)
         .all()
     )
-    if not posts:
-        # no activity; return zeros but still allow prediction
-        msg_count = 0
-    else:
-        msg_count = len(posts)
 
+    msg_count = len(posts)
     minutes = max((datetime.utcnow() - window).total_seconds() / 60.0, 1e-3)
     msg_freq = msg_count / minutes
 
-    # Follow rate
     follows = (
         db.session.query(Follow)
         .filter(Follow.follower_id == user_id, Follow.timestamp >= window)
@@ -81,15 +71,14 @@ def compute_user_features(user_id: int) -> Tuple[float, float, float, float] | N
     )
     follow_rate = len(follows) / minutes
 
-    # Duplicate content ratio
+    # Duplicate ratio
     if posts:
         contents = [p.content for p in posts]
         unique_contents = len(set(contents))
-        duplicate_ratio = 0.0 if len(contents) == 0 else 1.0 - (unique_contents / len(contents))
+        duplicate_ratio = 1.0 - (unique_contents / len(contents))
     else:
         duplicate_ratio = 0.0
 
-    # Login frequency
     logins = (
         db.session.query(LoginEvent)
         .filter(LoginEvent.user_id == user_id, LoginEvent.timestamp >= window)
@@ -97,8 +86,18 @@ def compute_user_features(user_id: int) -> Tuple[float, float, float, float] | N
     )
     login_freq = len(logins) / minutes
 
-    return float(msg_freq), float(follow_rate), float(duplicate_ratio), float(login_freq)
+    #NEW FEATURES
+    engagement_rate = msg_count / (len(follows) + 1)
+    suspicious_ratio = len(follows) / (msg_count + 1)
 
+    return (
+        float(msg_freq),
+        float(follow_rate),
+        float(duplicate_ratio),
+        float(login_freq),
+        float(engagement_rate),      # NEW
+        float(suspicious_ratio)      # NEW
+    )
 
 def _ensure_model():
     global _model
@@ -142,5 +141,3 @@ def update_user_risk(user_id: int):
         record.risk_score = risk
         record.status = status
     db.session.commit()
-
-
