@@ -1,20 +1,61 @@
 {% extends "base.html" %}
+
+{% block title %}Admin · Fake Account Detector{% endblock %}
+
+{% block head_extra %}
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
+
 {% block content %}
 <section class="admin-container">
-    <h2>Admin Dashboard – Autonomous Fake Account Agent</h2>
-    <p>This table updates automatically as the background agent re-evaluates users.</p>
-    <table id="userTable">
-        <thead>
-        <tr>
-            <th>User ID</th>
-            <th>Username</th>
-            <th>Risk Score</th>
-            <th>Status</th>
-        </tr>
-        </thead>
-        <tbody>
-        </tbody>
-    </table>
+    <div class="section-header">
+        <h1 class="section-title">Admin Dashboard</h1>
+        <p class="section-subtitle">Real‑time risk scores, automation, and activity intelligence.</p>
+    </div>
+
+    <div class="admin-layout">
+        <article class="card">
+            <div class="section-header">
+                <h2 class="section-title">Risk distribution</h2>
+                <p class="section-subtitle">Aggregated view of Safe / Restricted / Blocked.</p>
+            </div>
+            <div class="chart-container">
+                <canvas id="riskChart"></canvas>
+            </div>
+        </article>
+
+        <article class="card">
+            <div class="section-header">
+                <h2 class="section-title">Top suspicious users</h2>
+                <p class="section-subtitle">Sorted by risk score, auto‑refreshed.</p>
+            </div>
+            <div class="table-caption">
+                <span>Filter</span>
+                <div class="filter-chips" id="statusFilters">
+                    <button class="chip active" data-filter="all">All</button>
+                    <button class="chip" data-filter="Safe">🟢 Safe</button>
+                    <button class="chip" data-filter="Restricted">🟠 Restricted</button>
+                    <button class="chip" data-filter="Blocked">🔴 Blocked</button>
+                </div>
+            </div>
+            <table id="userTable">
+                <thead>
+                <tr>
+                    <th>User</th>
+                    <th>Risk</th>
+                    <th>Status</th>
+                </tr>
+                </thead>
+                <tbody>
+                </tbody>
+            </table>
+        </article>
+    </div>
 </section>
+{% endblock %}
+
+{% block body_scripts %}
+{{ super() }}
 <script src="{{ url_for('static', filename='admin.js') }}"></script>
 {% endblock %}
+

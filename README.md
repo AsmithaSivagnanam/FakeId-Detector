@@ -5,11 +5,12 @@ This is a small end‑to‑end demo of an autonomous agent that protects a socia
 ### Features
 
 - **Mini social app**: User registration/login, posting messages, following other users.
-- **Activity logging**: Posts, follows, and login events stored in SQLite.
+- **Activity logging**: Posts, follows, login events, and risk automation events stored in SQLite (`ActivityLog`).
 - **Simulation**: Background threads simulate both fake (bot) users and real users.
 - **ML model (scikit‑learn)**: Uses activity‑based features (message frequency, follow rate, duplicate content, login frequency) to predict whether a user is fake.
 - **Autonomous agent**: Periodically recomputes a risk score for each user and sets their status to Safe / Restricted / Blocked.
 - **Admin dashboard**: Web UI showing all users, risk scores, and statuses updating every few seconds.
+- **API-first platform**: Predict endpoint + user and activity APIs for external integration.
 
 ### Tech Stack
 
@@ -26,8 +27,10 @@ This is a small end‑to‑end demo of an autonomous agent that protects a socia
 - **`agent.py`**: Background agent loop that calls the ML model and updates `UserRisk`.
 - **`simulator.py`**: Creates synthetic real and bot users and simulates their behavior in background threads.
 - **`templates/`**: HTML templates (`base.html`, `login.html`, `register.html`, `feed.html`, `admin.html`).
-- **`static/`**: Frontend assets (`styles.css`, `feed.js`, `admin.js`).
+- **`static/`**: Frontend assets (`styles.css`, `feed.js`, `admin.js`, `profile.js`).
 - **`requirements.txt`**: Python dependencies.
+- **`wsgi.py`**: WSGI entrypoint for production servers.
+- **`gunicorn.conf.py`**: Gunicorn configuration.
 
 ### Running Locally
 
@@ -69,5 +72,29 @@ This is a small end‑to‑end demo of an autonomous agent that protects a socia
      - Status: **Safe**, **Restricted**, or **Blocked**.
 
    As the simulator runs, bot users will naturally accumulate very high activity rates and duplicate content, pushing their risk scores up. The autonomous agent periodically re‑evaluates all users and updates their status, which is reflected in the dashboard.
+
+### API Endpoints (Integration)
+
+- **`POST /api/predict`**
+  - Request:
+    - `{"features": [msg_freq, follow_rate, duplicate_ratio, login_freq, engagement_rate, suspicious_ratio]}`
+  - Response:
+    - `{"risk_score": 82.5, "status": "Restricted"}`
+- **`GET /api/users`**: List users with risk and status.
+- **`GET /api/user/<id>`**: Single user + metrics + risk.
+- **`POST /api/activity`**: External activity ingestion.
+  - Example:
+    - `{"user_id": 1, "event_type": "post", "content": "hello"}`
+    - `{"user_id": 1, "event_type": "follow", "target_user_id": 2}`
+    - `{"user_id": 1, "event_type": "login"}`
+
+### Production / Deployment
+
+- **Environment variables**
+  - `SECRET_KEY`: required in production
+  - `DATABASE_URL`: e.g. `sqlite:///fake_accounts.db` or a managed DB URL
+- **Gunicorn**
+  - Run:
+    - `gunicorn -c gunicorn.conf.py wsgi:app`
 
 

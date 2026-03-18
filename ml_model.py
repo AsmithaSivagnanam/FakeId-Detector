@@ -9,11 +9,17 @@ import numpy as np
 from flask import current_app
 from sqlalchemy import func
 
-from models import db, User, Post, Follow, LoginEvent, UserRisk
+import json
+
+from models import db, User, Post, Follow, LoginEvent, UserRisk, ActivityLog
 
 MODEL_PATH = "model.joblib"
 _model_lock = threading.Lock()
 _model = None
+
+STATUS_SAFE = "Safe"
+STATUS_RESTRICTED = "Restricted"
+STATUS_BLOCKED = "Blocked"
 
 
 def train_model_from_history():
@@ -127,13 +133,14 @@ def update_user_risk(user_id: int):
     """Compute risk and update UserRisk row and status based on thresholds."""
     risk = predict_risk_for_user(user_id)
     if risk >= 90.0:
-        status = "Blocked"
+        status = STATUS_BLOCKED
     elif risk >= 60.0:
-        status = "Restricted"
+        status = STATUS_RESTRICTED
     else:
-        status = "Safe"
+        status = STATUS_SAFE
 
     record = UserRisk.query.filter_by(user_id=user_id).first()
+    prev_status = record.status if record else None
     if not record:
         record = UserRisk(user_id=user_id, risk_score=risk, status=status)
         db.session.add(record)
@@ -141,3 +148,39 @@ def update_user_risk(user_id: int):
         record.risk_score = risk
         record.status = status
     db.session.commit()
+
+    # Automation + audit trail (log only meaningful events).
+    if prev_status != status:
+        event_type = "blocked" if status == STATUS_BLOCKED else ("restricted" if status == STATUS_RESTRICTED else "safe")
+        db.session.add(
+            ActivityLog(
+                user_id=user_id,
+                event_type=event_type,
+                metadata_json=json.dumps({"risk_score": float(risk), "from": prev_status, "to": status}),
+            )
+        )
+        db.session.commit()
+
+
+def predict_risk_from_features(features) -> tuple[float, str]:
+    """
+    Predict risk score (0-100) and status from a raw features array.
+
+    Expected order:
+    [msg_freq, follow_rate, duplicate_ratio, login_freq, engagement_rate, suspicious_ratio]
+    """
+    model = _ensure_model()
+    if model is None:
+        risk = 10.0
+    else:
+        X = np.array(features, dtype=float).reshape(1, -1)
+        proba = model.predict_proba(X)[0][1]
+        risk = float(proba * 100.0)
+
+    if risk >= 90.0:
+        status = STATUS_BLOCKED
+    elif risk >= 60.0:
+        status = STATUS_RESTRICTED
+    else:
+        status = STATUS_SAFE
+    return risk, status

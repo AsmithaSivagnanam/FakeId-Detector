@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}Profile · {{ user.username }}{% endblock %}
+{% block content %}
+<section class="profile-container">
+    <div class="profile-header">
+        <div class="profile-identity">
+            <div class="avatar">{{ user.username[:1]|upper }}</div>
+            <div>
+                <div class="profile-username">{{ user.username }}</div>
+                <div class="hint">User ID: {{ user.id }}</div>
+            </div>
+        </div>
+        <span class="badge {{ status_class }}" id="riskStatusBadge">
+            <span>{% if status == "Blocked" %}🔴{% elif status == "Restricted" %}🟠{% else %}🟢{% endif %}</span>
+            <span id="riskStatusText">{{ status }}</span>
+        </span>
+    </div>
+
+    <div class="card-grid">
+        <article class="card">
+            <div class="section-header">
+                <h2 class="section-title">Activity metrics</h2>
+                <p class="section-subtitle">Snapshot of current account behavior.</p>
+            </div>
+            <div class="metric-grid">
+                <div>
+                    <div class="metric-label">Posts</div>
+                    <div class="metric-value" id="metricPosts">{{ posts_count }}</div>
+                </div>
+                <div>
+                    <div class="metric-label">Followers</div>
+                    <div class="metric-value" id="metricFollowers">{{ followers_count }}</div>
+                </div>
+                <div>
+                    <div class="metric-label">Following</div>
+                    <div class="metric-value" id="metricFollowing">{{ following_count }}</div>
+                </div>
+                <div>
+                    <div class="metric-label">Login frequency</div>
+                    <div class="metric-value" id="metricLogins">{{ recent_logins }} / 7d</div>
+                </div>
+            </div>
+        </article>
+
+        <article class="card">
+            <div class="section-header">
+                <h2 class="section-title">Risk score</h2>
+                <p class="section-subtitle">Updates live via API polling.</p>
+            </div>
+            <div class="risk-progress-track" aria-label="Risk score progress">
+                <div class="risk-progress-bar" id="riskProgressBar"></div>
+            </div>
+            <div class="risk-meta">
+                <span>Score</span>
+                <span><strong id="riskScoreText">{{ "%.2f"|format(risk_score) }}%</strong></span>
+            </div>
+            <div class="hint" id="riskUpdatedAt"></div>
+        </article>
+    </div>
+</section>
+{% endblock %}
+
+{% block body_scripts %}
+{{ super() }}
+<script>
+  window.__PROFILE_USER_ID__ = { user,id };
+  window.__PROFILE_RISK_SCORE__ = { risk_score };
+</script>
+<script src="{{ url_for('static', filename='profile.js') }}"></script>
+{% endblock %}
+

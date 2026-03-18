@@ -68,3 +68,11 @@ class UserRisk(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
+class ActivityLog(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
+    event_type = db.Column(db.String(24), nullable=False, index=True)  # post/follow/login/block/restrict
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    metadata_json = db.Column(db.Text, nullable=True)
+
+
