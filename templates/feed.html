@@ -54,10 +54,17 @@
                 <h2 class="section-title">Follow a user</h2>
                 <p class="section-subtitle">Suspicious follow patterns increase risk.</p>
             </div>
-            <input id="followUsername" type="text" placeholder="Username to follow">
+            <input id="followUsername" type="text" placeholder="Username to follow" list="userSuggestions" autocomplete="off">
+            <datalist id="userSuggestions">
+                {% for u in all_users %}
+                    {% if u.id != current_user.id %}
+                        <option value="{{ u.username }}"></option>
+                    {% endif %}
+                {% endfor %}
+            </datalist>
             <button id="followButton">Follow</button>
             <div id="followStatus" class="hint"></div>
-            <p class="hint">Simulator users: agan_11, merlin_cutiee, jeeva_007, priya_sweety, im_prabu, its_me!!</p>
+            <p class="hint">Tip: click the input to see suggested usernames.</p>
         </article>
     </div>
 

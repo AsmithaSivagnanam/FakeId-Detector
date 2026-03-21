@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+
+{% block title %}Access denied{% endblock %}
+
+{% block content %}
+<section class="admin-container">
+  <div class="section-header">
+    <h1 class="section-title">Access denied</h1>
+    <p class="section-subtitle">This area is restricted to admin users.</p>
+  </div>
+
+  <div class="card">
+    <p class="hint" style="margin:0;">
+      If you are an admin, start the app with environment variable <strong>ADMIN_USERS</strong> containing your username,
+      then log out and log in again.
+    </p>
+  </div>
+</section>
+{% endblock %}
+

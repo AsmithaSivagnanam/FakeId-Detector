@@ -6,8 +6,24 @@ from datetime import datetime
 from models import db, User, Post, Follow, LoginEvent
 
 
-BOT_USERNAMES = ["bot_alpha", "bot_beta", "bot_gamma"]
-REAL_USERNAMES = ["alice", "bob", "charlie"]
+# Simulator users that should always exist.
+# Keep in sync with the UI suggestions on /feed.
+BOT_USERNAMES = [
+    "bot_alpha",
+    "bot_beta",
+    "bot_gamma",
+    "agan_11",
+    "merlin_cutiee",
+    "jeeva_007",
+]
+REAL_USERNAMES = [
+    "alice",
+    "bob",
+    "charlie",
+    "priya_sweety",
+    "im_prabu",
+    "its_me!!",
+]
 
 
 def ensure_sim_users():

@@ -1,17 +1,21 @@
 from datetime import datetime, timedelta
 
+from functools import wraps
+
 from flask import Flask, jsonify, redirect, render_template, request, url_for
 from flask_cors import CORS
 from flask_login import (LoginManager, UserMixin, current_user, login_required,
                          login_user, logout_user)
+from sqlalchemy import text
 
 import json
 import os
 
 from models import db, User, Post, Follow, LoginEvent, UserRisk, ActivityLog
-from ml_model import load_model, predict_risk_from_features, update_user_risk
+from ml_model import load_model, predict_risk_from_features, update_user_risk, explain_from_features, get_model_meta, compute_user_features
 from simulator import start_simulation_threads
 from agent import start_agent_thread
+from realtime import socketio
 
 
 def create_app():
@@ -19,9 +23,14 @@ def create_app():
     app.config["SECRET_KEY"] = os.getenv("SECRET_KEY", "dev-secret-key-change-me")
     app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URL", "sqlite:///fake_accounts.db")
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+    # External integration: comma-separated API keys for ingestion endpoint
+    app.config["API_KEYS"] = {k.strip() for k in (os.getenv("API_KEYS", "")).split(",") if k.strip()}
+    # RBAC: comma-separated usernames that should be admins
+    app.config["ADMIN_USERS"] = {u.strip() for u in (os.getenv("ADMIN_USERS", "")).split(",") if u.strip()}
 
     db.init_app(app)
     CORS(app)
+    socketio.init_app(app, async_mode="threading")
 
     login_manager = LoginManager()
     login_manager.login_view = "login"
@@ -36,6 +45,26 @@ def create_app():
         with app.app_context():
             # Ensure DB tables exist
             db.create_all()
+            # Lightweight SQLite migrations for existing DBs
+            try:
+                cols = [row[1] for row in db.session.execute(text("PRAGMA table_info(user)")).fetchall()]
+                if "is_admin" not in cols:
+                    db.session.execute(text("ALTER TABLE user ADD COLUMN is_admin BOOLEAN NOT NULL DEFAULT 0"))
+                    db.session.commit()
+            except Exception:
+                db.session.rollback()
+            # Promote configured admin users (if present)
+            if app.config["ADMIN_USERS"]:
+                User.query.filter(User.username.in_(app.config["ADMIN_USERS"])).update(
+                    {"is_admin": True}, synchronize_session=False
+                )
+                db.session.commit()
+            # Bootstrap: if no admins exist yet, promote first non-bot user.
+            if User.query.filter_by(is_admin=True).count() == 0:
+                first_real = User.query.filter(User.user_type != "bot").order_by(User.id.asc()).first()
+                if first_real:
+                    first_real.is_admin = True
+                    db.session.commit()
             # Load / train model if needed
             load_model(app)
             # Start simulation and agent threads
@@ -46,6 +75,34 @@ def create_app():
     setup_background_components()
 
     # --------- Routes: Auth & Basic Pages ----------
+
+    def admin_required(view_fn):
+        @wraps(view_fn)
+        def _wrapped(*args, **kwargs):
+            if not current_user.is_authenticated:
+                return redirect(url_for("login"))
+            if not getattr(current_user, "is_admin", False):
+                # For browser navigation, show a clear forbidden page.
+                if "text/html" in (request.headers.get("Accept") or ""):
+                    return render_template("forbidden.html"), 403
+                return jsonify({"error": "admin access required"}), 403
+            return view_fn(*args, **kwargs)
+
+        return _wrapped
+
+    def require_api_key(view_fn):
+        @wraps(view_fn)
+        def _wrapped(*args, **kwargs):
+            allowed = app.config.get("API_KEYS") or set()
+            if not allowed:
+                # Dev mode: allow if no keys are configured
+                return view_fn(*args, **kwargs)
+            provided = request.headers.get("X-API-Key") or ""
+            if provided not in allowed:
+                return jsonify({"error": "invalid or missing API key"}), 401
+            return view_fn(*args, **kwargs)
+
+        return _wrapped
 
     def _handle_register(template_name: str):
         if current_user.is_authenticated:
@@ -63,6 +120,8 @@ def create_app():
 
             user = User(username=username)
             user.set_password(password)
+            if username in app.config.get("ADMIN_USERS", set()):
+                user.is_admin = True
             db.session.add(user)
             db.session.commit()
 
@@ -100,6 +159,9 @@ def create_app():
 
             user = User.query.filter_by(username=username).first()
             if user and user.check_password(password):
+                if username in app.config.get("ADMIN_USERS", set()) and not user.is_admin:
+                    user.is_admin = True
+                    db.session.commit()
                 login_user(user)
                 db.session.add(LoginEvent(user_id=user.id, timestamp=datetime.utcnow()))
                 db.session.add(ActivityLog(user_id=user.id, event_type="login", metadata_json=json.dumps({"source": "form"})))
@@ -118,6 +180,10 @@ def create_app():
         return redirect(url_for("login"))
 
     # --------- Routes: Social Features ----------
+
+    def _get_user_status(user_id: int) -> str:
+        r = UserRisk.query.filter_by(user_id=user_id).first()
+        return r.status if r else "Safe"
 
     @app.route("/feed")
     @login_required
@@ -151,6 +217,11 @@ def create_app():
     @app.route("/api/post", methods=["POST"])
     @login_required
     def api_post():
+        status = _get_user_status(current_user.id)
+        if status == "Blocked":
+            return jsonify({"error": "Your account is blocked"}), 403
+        if status == "Restricted":
+            return jsonify({"error": "Your account is restricted"}), 403
         data = request.get_json() or {}
         content = data.get("content", "").strip()
         if not content:
@@ -170,6 +241,11 @@ def create_app():
     @app.route("/api/follow", methods=["POST"])
     @login_required
     def api_follow():
+        status = _get_user_status(current_user.id)
+        if status == "Blocked":
+            return jsonify({"error": "Your account is blocked"}), 403
+        if status == "Restricted":
+            return jsonify({"error": "Your account is restricted"}), 403
         data = request.get_json() or {}
         target_username = data.get("username")
         if not target_username:
@@ -250,7 +326,22 @@ def create_app():
             }
         )
 
+    @app.route("/api/user/<int:user_id>/explain", methods=["GET"])
+    def api_user_explain(user_id: int):
+        u = User.query.get_or_404(user_id)
+        feats = compute_user_features(u.id)
+        explanation = explain_from_features(feats, top_k=3)
+        explanation["user"] = {"id": u.id, "username": u.username}
+        r = UserRisk.query.filter_by(user_id=u.id).first()
+        explanation["risk"] = {"risk_score": round(float(r.risk_score), 2) if r else 0.0, "status": r.status if r else "Safe"}
+        return jsonify(explanation)
+
+    @app.route("/api/model/meta", methods=["GET"])
+    def api_model_meta():
+        return jsonify(get_model_meta() or {})
+
     @app.route("/api/activity", methods=["POST"])
+    @require_api_key
     def api_activity():
         """
         External platforms can report activity:
@@ -317,6 +408,7 @@ def create_app():
 
     @app.route("/admin")
     @login_required
+    @admin_required
     def admin_dashboard():
         return render_template("admin.html")
 
@@ -356,6 +448,7 @@ def create_app():
 
     @app.route("/api/admin/users")
     @login_required
+    @admin_required
     def admin_users():
         users = User.query.all()
         result = []
@@ -375,6 +468,7 @@ def create_app():
 
     @app.route("/api/admin/logs")
     @login_required
+    @admin_required
     def admin_logs():
         limit = request.args.get("limit", "50")
         try:
@@ -405,12 +499,44 @@ def create_app():
             )
         return jsonify(payload)
 
+    @app.route("/api/admin/user/<int:user_id>/status", methods=["POST"])
+    @login_required
+    @admin_required
+    def admin_set_user_status(user_id: int):
+        data = request.get_json() or {}
+        status = (data.get("status") or "").strip()
+        reason = (data.get("reason") or "").strip()
+        if status not in {"Safe", "Restricted", "Blocked"}:
+            return jsonify({"error": "status must be Safe, Restricted, or Blocked"}), 400
+
+        u = User.query.get_or_404(user_id)
+        rec = UserRisk.query.filter_by(user_id=u.id).first()
+        prev = rec.status if rec else "Safe"
+        if not rec:
+            rec = UserRisk(user_id=u.id, risk_score=0.0, status=status)
+            db.session.add(rec)
+        else:
+            rec.status = status
+        db.session.commit()
+
+        db.session.add(
+            ActivityLog(
+                user_id=u.id,
+                event_type="manual_status",
+                metadata_json=json.dumps({"from": prev, "to": status, "reason": reason, "by": current_user.username}),
+            )
+        )
+        db.session.commit()
+        socketio.emit("logs_update", {"event": "manual_status"})
+        socketio.emit("users_update", {"event": "manual_status"})
+        return jsonify({"status": "ok", "user_id": u.id, "from": prev, "to": status})
+
     return app
 
 app = create_app()
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    socketio.run(app, debug=True)
 
 
 

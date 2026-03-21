@@ -1,5 +1,6 @@
 
 import os
+import json
 import threading
 from datetime import datetime, timedelta
 from typing import Tuple
@@ -9,13 +10,13 @@ import numpy as np
 from flask import current_app
 from sqlalchemy import func
 
-import json
-
-from models import db, User, Post, Follow, LoginEvent, UserRisk, ActivityLog
+from models import db, User, Post, Follow, LoginEvent, UserRisk, ActivityLog, UserFeatureSnapshot
 
 MODEL_PATH = "model.joblib"
+MODEL_META_PATH = "model_meta.json"
 _model_lock = threading.Lock()
 _model = None
+_model_meta = None
 
 STATUS_SAFE = "Safe"
 STATUS_RESTRICTED = "Restricted"
@@ -44,6 +45,24 @@ def train_model_from_history():
     clf = RandomForestClassifier(n_estimators=100, random_state=42)
     clf.fit(X, y)
     joblib.dump(clf, MODEL_PATH)
+    meta = {
+        "model_type": "RandomForestClassifier",
+        "trained_at": datetime.utcnow().isoformat(),
+        "n_estimators": 100,
+        "feature_names": [
+            "msg_freq",
+            "follow_rate",
+            "duplicate_ratio",
+            "login_freq",
+            "engagement_rate",
+            "suspicious_ratio",
+        ],
+    }
+    try:
+        with open(MODEL_META_PATH, "w", encoding="utf-8") as f:
+            json.dump(meta, f)
+    except Exception:
+        pass
     return clf
 
 
@@ -53,8 +72,23 @@ def load_model(app):
     with app.app_context():
         if os.path.exists(MODEL_PATH):
             _model = joblib.load(MODEL_PATH)
+            _load_meta()
         else:
             _model = train_model_from_history()
+            _load_meta()
+
+
+def _load_meta():
+    global _model_meta
+    if _model_meta is not None:
+        return _model_meta
+    if os.path.exists(MODEL_META_PATH):
+        try:
+            with open(MODEL_META_PATH, "r", encoding="utf-8") as f:
+                _model_meta = json.load(f)
+        except Exception:
+            _model_meta = None
+    return _model_meta
 
 
 def compute_user_features(user_id: int):
@@ -96,7 +130,7 @@ def compute_user_features(user_id: int):
     engagement_rate = msg_count / (len(follows) + 1)
     suspicious_ratio = len(follows) / (msg_count + 1)
 
-    return (
+    features = (
         float(msg_freq),
         float(follow_rate),
         float(duplicate_ratio),
@@ -105,12 +139,77 @@ def compute_user_features(user_id: int):
         float(suspicious_ratio)      # NEW
     )
 
+    # Persist the latest features for explainability / analytics.
+    snap = UserFeatureSnapshot.query.filter_by(user_id=user_id).first()
+    if not snap:
+        snap = UserFeatureSnapshot(user_id=user_id)
+        db.session.add(snap)
+    (
+        snap.msg_freq,
+        snap.follow_rate,
+        snap.duplicate_ratio,
+        snap.login_freq,
+        snap.engagement_rate,
+        snap.suspicious_ratio,
+    ) = features
+    db.session.commit()
+
+    return features
+
 def _ensure_model():
     global _model
     if _model is None:
         # Lazy-train if still None
         _model = train_model_from_history()
+        _load_meta()
     return _model
+
+
+def get_model_meta():
+    return _load_meta()
+
+
+def explain_from_features(features, top_k: int = 3):
+    """
+    Lightweight explainability for prototype:
+    Uses global feature_importances_ as weights and ranks features by |weight * value|.
+    Returns a list of top feature contributions plus raw values.
+    """
+    model = _ensure_model()
+    meta = get_model_meta() or {}
+    names = meta.get(
+        "feature_names",
+        ["msg_freq", "follow_rate", "duplicate_ratio", "login_freq", "engagement_rate", "suspicious_ratio"],
+    )
+    try:
+        importances = getattr(model, "feature_importances_", None)
+        if importances is None:
+            importances = np.ones(len(features), dtype=float) / max(len(features), 1)
+        importances = np.array(importances, dtype=float)
+    except Exception:
+        importances = np.ones(len(features), dtype=float) / max(len(features), 1)
+
+    values = np.array(features, dtype=float)
+    scores = np.abs(importances * values)
+    order = np.argsort(scores)[::-1][: max(1, min(int(top_k), len(names)))]
+    top = []
+    for idx in order:
+        top.append(
+            {
+                "feature": names[int(idx)] if int(idx) < len(names) else f"f{int(idx)}",
+                "value": float(values[int(idx)]),
+                "weight": float(importances[int(idx)]),
+                "contribution": float(importances[int(idx)] * values[int(idx)]),
+            }
+        )
+    return {
+        "model": {
+            "type": meta.get("model_type"),
+            "trained_at": meta.get("trained_at"),
+        },
+        "features": {names[i]: float(values[i]) for i in range(min(len(names), len(values)))},
+        "top_contributors": top,
+    }
 
 
 def predict_risk_for_user(user_id: int) -> float:

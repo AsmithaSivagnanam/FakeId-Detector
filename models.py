@@ -17,6 +17,9 @@ class User(db.Model, UserMixin):
     # type: "real" or "bot" (for simulator / labels)
     user_type = db.Column(db.String(16), default="real")
 
+    # RBAC: admin-only access to /admin and admin APIs
+    is_admin = db.Column(db.Boolean, default=False, nullable=False)
+
     def set_password(self, password: str):
         self.password_hash = generate_password_hash(password)
 
@@ -66,6 +69,18 @@ class UserRisk(db.Model):
     risk_score = db.Column(db.Float, default=0.0)
     status = db.Column(db.String(16), default="Safe")  
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class UserFeatureSnapshot(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), unique=True, nullable=False, index=True)
+    msg_freq = db.Column(db.Float, default=0.0)
+    follow_rate = db.Column(db.Float, default=0.0)
+    duplicate_ratio = db.Column(db.Float, default=0.0)
+    login_freq = db.Column(db.Float, default=0.0)
+    engagement_rate = db.Column(db.Float, default=0.0)
+    suspicious_ratio = db.Column(db.Float, default=0.0)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, index=True)
 
 
 class ActivityLog(db.Model):

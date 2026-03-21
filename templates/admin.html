@@ -51,6 +51,39 @@
             </table>
         </article>
     </div>
+
+    <article class="card" style="margin-top: 1.5rem;">
+        <div class="section-header">
+            <h2 class="section-title">Activity logs</h2>
+            <p class="section-subtitle">Audit trail of posts, follows, logins, and automation.</p>
+        </div>
+
+        <div class="table-caption">
+            <span>Filter</span>
+            <div class="filter-chips" id="logFilters">
+                <button class="chip active" data-log-filter="all">All</button>
+                <button class="chip" data-log-filter="post">Posts</button>
+                <button class="chip" data-log-filter="follow">Follows</button>
+                <button class="chip" data-log-filter="login">Logins</button>
+                <button class="chip" data-log-filter="restricted">Restricted</button>
+                <button class="chip" data-log-filter="blocked">Blocked</button>
+                <button class="chip" data-log-filter="safe">Safe</button>
+            </div>
+        </div>
+
+        <table id="logsTable">
+            <thead>
+            <tr>
+                <th>Time</th>
+                <th>User</th>
+                <th>Event</th>
+                <th>Metadata</th>
+            </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+        <div class="hint" id="logsStatus" style="margin-top: 0.75rem;"></div>
+    </article>
 </section>
 {% endblock %}
 

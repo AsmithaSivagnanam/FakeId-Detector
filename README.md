@@ -82,19 +82,26 @@ This is a small end‑to‑end demo of an autonomous agent that protects a socia
     - `{"risk_score": 82.5, "status": "Restricted"}`
 - **`GET /api/users`**: List users with risk and status.
 - **`GET /api/user/<id>`**: Single user + metrics + risk.
+- **`GET /api/user/<id>/explain`**: Explainability (top feature contributors) + raw feature values.
 - **`POST /api/activity`**: External activity ingestion.
   - Example:
     - `{"user_id": 1, "event_type": "post", "content": "hello"}`
     - `{"user_id": 1, "event_type": "follow", "target_user_id": 2}`
     - `{"user_id": 1, "event_type": "login"}`
+  - Auth:
+    - If `API_KEYS` is set, send header `X-API-Key: <your_key>`
 
 ### Production / Deployment
 
 - **Environment variables**
   - `SECRET_KEY`: required in production
   - `DATABASE_URL`: e.g. `sqlite:///fake_accounts.db` or a managed DB URL
+  - `API_KEYS`: comma-separated keys for `/api/activity` (e.g. `key1,key2`)
+  - `ADMIN_USERS`: comma-separated usernames allowed to access `/admin` (e.g. `alice,bob`)
 - **Gunicorn**
   - Run:
-    - `gunicorn -c gunicorn.conf.py wsgi:app`
+    - For HTTP only: `gunicorn -c gunicorn.conf.py wsgi:app`
+    - For WebSockets (admin real-time): run a Socket.IO-compatible server. For example, install an async worker and use:
+      - `gunicorn -k eventlet -w 1 wsgi:app`
 
 
