@@ -185,6 +185,75 @@ def create_app():
         r = UserRisk.query.filter_by(user_id=user_id).first()
         return r.status if r else "Safe"
 
+    def _ai_reason_for_status(user_id: int, status: str, risk_score: float) -> str:
+        score = float(risk_score or 0.0)
+        try:
+            msg_freq, follow_rate, duplicate_ratio, login_freq, engagement_rate, suspicious_ratio = compute_user_features(user_id)
+        except Exception:
+            msg_freq, follow_rate, duplicate_ratio, login_freq, engagement_rate, suspicious_ratio = (0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
+
+        blocked_reasons = []
+        if duplicate_ratio >= 0.55:
+            blocked_reasons.append("AI decision: Duplicate content pattern indicates coordinated automation abuse.")
+        if login_freq >= 0.35:
+            blocked_reasons.append("AI decision: Frequent logins across short intervals suggest unusual multi-location access.")
+        if follow_rate >= 0.70:
+            blocked_reasons.append("AI decision: Follower/follow burst detected in seconds, consistent with inorganic growth behavior.")
+        if suspicious_ratio >= 1.20:
+            blocked_reasons.append("AI decision: Suspicious interaction ratio is extremely high compared to normal user behavior.")
+        if msg_freq >= 0.90:
+            blocked_reasons.append("AI decision: Posting velocity exceeds safe threshold and matches bot-like activity.")
+        if engagement_rate >= 3.00:
+            blocked_reasons.append("AI decision: Engagement anomaly detected with disproportionate activity-to-network pattern.")
+
+        restricted_reasons = []
+        if duplicate_ratio >= 0.35:
+            restricted_reasons.append("AI decision: Repetitive content detected; account moved to restricted mode for review.")
+        if login_freq >= 0.18:
+            restricted_reasons.append("AI decision: Elevated login velocity detected; temporary restrictions applied.")
+        if follow_rate >= 0.35:
+            restricted_reasons.append("AI decision: Rapid follow behavior detected; account restricted pending verification.")
+        if suspicious_ratio >= 0.80:
+            restricted_reasons.append("AI decision: Activity ratio appears abnormal and requires additional monitoring.")
+        if msg_freq >= 0.45:
+            restricted_reasons.append("AI decision: Posting frequency is unusually high for the current trust profile.")
+
+        if status == "Blocked":
+            options = blocked_reasons or [
+                "AI decision: Multiple high-risk signals were detected and account access is now blocked for platform safety."
+            ]
+            idx = (int(user_id) + int(score)) % len(options)
+            return options[idx]
+
+        if status == "Restricted":
+            options = restricted_reasons or [
+                "AI decision: Medium-risk behavior identified and temporary restrictions were applied."
+            ]
+            idx = (int(user_id) + int(score)) % len(options)
+            return options[idx]
+
+        return "AI decision: Current behavior falls within normal trust boundaries and the account is marked safe."
+
+    def _latest_manual_status_reason(user_id: int):
+        log = (
+            ActivityLog.query.filter_by(user_id=user_id, event_type="manual_status")
+            .order_by(ActivityLog.timestamp.desc())
+            .first()
+        )
+        if not log or not log.metadata_json:
+            return None
+        try:
+            metadata = json.loads(log.metadata_json)
+            return metadata.get("reason")
+        except Exception:
+            return None
+
+    def _current_status_reason(user_id: int, status: str, risk_score: float):
+        stored = _latest_manual_status_reason(user_id)
+        if stored:
+            return stored
+        return _ai_reason_for_status(user_id, status, risk_score)
+
     @app.route("/feed")
     @login_required
     def feed():
@@ -323,6 +392,11 @@ def create_app():
                 "risk_score": round(float(r.risk_score), 2) if r else 0.0,
                 "status": r.status if r else "Safe",
                 "updated_at": r.updated_at.isoformat() if r and r.updated_at else None,
+                "status_reason": _current_status_reason(
+                    u.id,
+                    r.status if r else "Safe",
+                    float(r.risk_score) if r else 0.0,
+                ),
             }
         )
 
@@ -430,6 +504,7 @@ def create_app():
 
         score = float(risk.risk_score) if risk else 0.0
         status = risk.status if risk else "Safe"
+        status_reason = _current_status_reason(u.id, status, score)
         status_class = (
             "status-blocked" if status == "Blocked" else ("status-restricted" if status == "Restricted" else "status-safe")
         )
@@ -443,6 +518,7 @@ def create_app():
             recent_logins=recent_logins,
             risk_score=round(score, 2),
             status=status,
+            status_reason=status_reason,
             status_class=status_class,
         )
 
@@ -462,6 +538,7 @@ def create_app():
                     "username": u.username,
                     "risk_score": round(score, 2),
                     "status": status,
+                    "reason": _current_status_reason(u.id, status, score),
                 }
             )
         return jsonify(result)
@@ -517,6 +594,9 @@ def create_app():
             db.session.add(rec)
         else:
             rec.status = status
+
+        if not reason:
+            reason = _ai_reason_for_status(u.id, status, rec.risk_score)
         db.session.commit()
 
         db.session.add(
@@ -529,7 +609,7 @@ def create_app():
         db.session.commit()
         socketio.emit("logs_update", {"event": "manual_status"})
         socketio.emit("users_update", {"event": "manual_status"})
-        return jsonify({"status": "ok", "user_id": u.id, "from": prev, "to": status})
+        return jsonify({"status": "ok", "user_id": u.id, "from": prev, "to": status, "reason": reason})
 
     return app
 

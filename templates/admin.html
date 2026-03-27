@@ -1,89 +1,137 @@
 {% extends "base.html" %}
 
-{% block title %}Admin · Fake Account Detector{% endblock %}
+{% block title %}Admin · AgentGuard{% endblock %}
 
 {% block head_extra %}
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 {% endblock %}
 
 {% block content %}
-<section class="admin-container">
-    <div class="section-header">
-        <h1 class="section-title">Admin Dashboard</h1>
-        <p class="section-subtitle">Real‑time risk scores, automation, and activity intelligence.</p>
+<section class="ag-shell">
+    <div class="ag-watermark" aria-hidden="true">AGENTGUARD</div>
+    <div class="ag-topbar ag-glass">
+        <div class="ag-brand">
+            <span class="ag-brand-icon">AG</span>
+            <div>
+                <h1>AgentGuard</h1>
+                <p>Digital Trust Intelligence Dashboard</p>
+            </div>
+        </div>
+        <div class="ag-userbox">
+            <div>
+                <strong>{{ current_user.username }}</strong>
+                <p>Security Admin</p>
+            </div>
+            <span class="ag-user-avatar" aria-hidden="true">{{ current_user.username[:1]|upper }}</span>
+            <a class="ag-link-btn" href="{{ url_for('logout') }}">Logout</a>
+        </div>
     </div>
 
-    <div class="admin-layout">
-        <article class="card">
-            <div class="section-header">
-                <h2 class="section-title">Risk distribution</h2>
-                <p class="section-subtitle">Aggregated view of Safe / Restricted / Blocked.</p>
-            </div>
-            <div class="chart-container">
-                <canvas id="riskChart"></canvas>
-            </div>
-        </article>
+    <div class="ag-layout">
+        <aside class="ag-sidebar ag-glass" id="agSidebar">
+            <button id="sidebarToggle" class="ag-sidebar-toggle" type="button" aria-label="Toggle sidebar">☰</button>
+            <a class="ag-nav-item active" href="{{ url_for('admin_dashboard') }}"><span>▦</span><span>Dashboard</span></a>
+            <a class="ag-nav-item" href="#usersSection"><span>◉</span><span>Users</span></a>
+            <a class="ag-nav-item" href="#analyticsSection"><span>◌</span><span>Analytics</span></a>
+            <a class="ag-nav-item" href="#adminSection"><span>◎</span><span>Admin</span></a>
+        </aside>
 
-        <article class="card">
-            <div class="section-header">
-                <h2 class="section-title">Top suspicious users</h2>
-                <p class="section-subtitle">Sorted by risk score, auto‑refreshed.</p>
-            </div>
-            <div class="table-caption">
-                <span>Filter</span>
-                <div class="filter-chips" id="statusFilters">
-                    <button class="chip active" data-filter="all">All</button>
-                    <button class="chip" data-filter="Safe">🟢 Safe</button>
-                    <button class="chip" data-filter="Restricted">🟠 Restricted</button>
-                    <button class="chip" data-filter="Blocked">🔴 Blocked</button>
+        <main class="ag-main">
+            <section class="ag-metrics" id="adminSection">
+                <article class="ag-metric-card ag-glass" id="metricTotal">
+                    <p class="ag-metric-icon">👥</p>
+                    <div>
+                        <h3>0</h3>
+                        <p>Total Users</p>
+                    </div>
+                </article>
+                <article class="ag-metric-card ag-glass" id="metricSuspicious">
+                    <p class="ag-metric-icon">⚠</p>
+                    <div>
+                        <h3>0</h3>
+                        <p>Suspicious Users</p>
+                    </div>
+                </article>
+                <article class="ag-metric-card ag-glass" id="metricBlocked">
+                    <p class="ag-metric-icon">⛔</p>
+                    <div>
+                        <h3>0</h3>
+                        <p>Blocked Users</p>
+                    </div>
+                </article>
+            </section>
+
+            <section class="ag-grid-2" id="analyticsSection">
+                <article class="ag-panel ag-glass">
+                    <div class="section-header">
+                        <h2 class="section-title">Risk Distribution</h2>
+                        <p class="section-subtitle">Safe vs restricted vs blocked accounts.</p>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="riskChart"></canvas>
+                    </div>
+                </article>
+                <article class="ag-panel ag-glass">
+                    <div class="section-header">
+                        <h2 class="section-title">User Activity Trend</h2>
+                        <p class="section-subtitle">Live account risk movement over time.</p>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="activityChart"></canvas>
+                    </div>
+                </article>
+            </section>
+
+            <section class="ag-panel ag-glass" id="usersSection">
+                <div class="section-header">
+                    <h2 class="section-title">User Risk Table</h2>
+                    <p class="section-subtitle">Live explainable trust scoring with controls.</p>
                 </div>
-            </div>
-            <table id="userTable">
-                <thead>
-                <tr>
-                    <th>User</th>
-                    <th>Risk</th>
-                    <th>Status</th>
-                </tr>
-                </thead>
-                <tbody>
-                </tbody>
-            </table>
-        </article>
+
+                <div class="ag-toolbar">
+                    <input id="searchInput" type="search" placeholder="Search username..." autocomplete="off">
+                    <select id="statusFilter">
+                        <option value="all">All Status</option>
+                        <option value="Safe">Safe</option>
+                        <option value="Restricted">Restricted</option>
+                        <option value="Blocked">Blocked</option>
+                    </select>
+                    <select id="sortBy">
+                        <option value="risk_desc">Sort: Highest Risk</option>
+                        <option value="risk_asc">Sort: Lowest Risk</option>
+                        <option value="username_asc">Sort: Username A-Z</option>
+                        <option value="username_desc">Sort: Username Z-A</option>
+                        <option value="status">Sort: Status</option>
+                    </select>
+                </div>
+
+                <div class="ag-table-wrap">
+                    <table id="userTable" class="ag-table">
+                        <thead>
+                        <tr>
+                            <th>Username</th>
+                            <th>Trust Score</th>
+                            <th>Status</th>
+                            <th>Trend</th>
+                            <th>Reason</th>
+                            <th>Actions</th>
+                        </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+                <div class="hint" id="tableStatus"></div>
+                <div class="ag-pagination">
+                    <button id="prevPageBtn" class="ag-page-btn" type="button">Previous</button>
+                    <span id="pageInfo">Page 1 / 1</span>
+                    <button id="nextPageBtn" class="ag-page-btn" type="button">Next</button>
+                </div>
+            </section>
+        </main>
     </div>
-
-    <article class="card" style="margin-top: 1.5rem;">
-        <div class="section-header">
-            <h2 class="section-title">Activity logs</h2>
-            <p class="section-subtitle">Audit trail of posts, follows, logins, and automation.</p>
-        </div>
-
-        <div class="table-caption">
-            <span>Filter</span>
-            <div class="filter-chips" id="logFilters">
-                <button class="chip active" data-log-filter="all">All</button>
-                <button class="chip" data-log-filter="post">Posts</button>
-                <button class="chip" data-log-filter="follow">Follows</button>
-                <button class="chip" data-log-filter="login">Logins</button>
-                <button class="chip" data-log-filter="restricted">Restricted</button>
-                <button class="chip" data-log-filter="blocked">Blocked</button>
-                <button class="chip" data-log-filter="safe">Safe</button>
-            </div>
-        </div>
-
-        <table id="logsTable">
-            <thead>
-            <tr>
-                <th>Time</th>
-                <th>User</th>
-                <th>Event</th>
-                <th>Metadata</th>
-            </tr>
-            </thead>
-            <tbody></tbody>
-        </table>
-        <div class="hint" id="logsStatus" style="margin-top: 0.75rem;"></div>
-    </article>
 </section>
 {% endblock %}
 

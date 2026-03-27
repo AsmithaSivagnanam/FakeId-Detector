@@ -54,6 +54,7 @@
                 <span>Score</span>
                 <span><strong id="riskScoreText">{{ "%.2f"|format(risk_score) }}%</strong></span>
             </div>
+            <div class="hint" id="riskReasonText">{{ status_reason }}</div>
             <div class="hint" id="riskUpdatedAt"></div>
         </article>
     </div>
@@ -63,8 +64,9 @@
 {% block body_scripts %}
 {{ super() }}
 <script>
-  window.__PROFILE_USER_ID__ = { user,id };
-  window.__PROFILE_RISK_SCORE__ = { risk_score };
+  window.__PROFILE_USER_ID__ = {{ user.id }};
+  window.__PROFILE_RISK_SCORE__ = {{ risk_score|tojson }};
+  window.__PROFILE_RISK_REASON__ = {{ status_reason|tojson }};
 </script>
 <script src="{{ url_for('static', filename='profile.js') }}"></script>
 {% endblock %}

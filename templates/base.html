@@ -2,14 +2,14 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>{% block title %}Fake Account Detector{% endblock %}</title>
+    <title>{% block title %}AgentGuard{% endblock %}</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
     {% block head_extra %}{% endblock %}
 </head>
 <body>
 <header>
-    <div class="logo">Fake Account Detector</div>
+    <div class="logo">AgentGuard</div>
     <nav>
         {% if current_user.is_authenticated %}
             <span>{{ current_user.username }}</span>
